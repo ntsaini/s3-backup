@@ -18,6 +18,7 @@ type Config struct {
 		Folders               []struct {
 			Src  string `yaml:"src"`
 			Dest string `yaml:"dest"`
+			Gzip bool   `yaml:"gzip"`
 		}
 		GlobalExcludes []string `yaml:"globalExcludes"`
 	}

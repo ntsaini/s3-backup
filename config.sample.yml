@@ -15,9 +15,11 @@ backup:
         - 
             src: C:\Temp\Misc1
             dest: Temp/Misc1
+            gzip: false
         - 
             src: C:\Temp\Misc2
-            dest: Temp/Misc2        
+            dest: Temp/Misc2
+            gzip: true     
     globalExcludes:
         - '**/node_modules/**'
         - '**/bin/**'
@@ -31,4 +33,3 @@ backup:
         - '**/build/**'
         - '**/boto/**'
         - '**/botocore/**'
-        - '**/Sepulcher/**'

@@ -66,10 +66,10 @@ func main() {
 
 	for _, localDir := range localDirs {
 		wg.Add(1)
-		go func(localDir string, srcToDestMap map[string]string) {
+		go func(localDir string, srcToDestMap map[string]string, gzip bool) {
 			defer wg.Done()
-			processFilesAtRootOnly(localDir, srcToDestMap, bucketName, uploader)
-		}(localDir, srcToDestMap)
+			processFilesAtRootOnly(localDir, srcToDestMap, bucketName, uploader, true)
+		}(localDir, srcToDestMap, true)
 	}
 	wg.Wait()
 }
@@ -109,7 +109,11 @@ func isExcluded(path string, excludeList []string) bool {
 	return false
 }
 
-func processFilesAtRootOnly(dirPath string, srcToDestMap map[string]string, bucketName string, uploader s3manager.Uploader) {
+func processFilesAtRootOnly(dirPath string,
+	srcToDestMap map[string]string,
+	bucketName string,
+	uploader s3manager.Uploader,
+	gzip bool) {
 	err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
 			//don't process the root path but don't skip iterating on files
@@ -119,7 +123,7 @@ func processFilesAtRootOnly(dirPath string, srcToDestMap map[string]string, buck
 			return filepath.SkipDir
 		}
 		destPath := getDestinationName(path, srcToDestMap)
-		uploadError := uploadFileToS3(path, destPath, bucketName, uploader)
+		uploadError := uploadFileToS3(path, destPath, bucketName, uploader, gzip)
 		if uploadError != nil {
 			return uploadError
 			// fmt.Println("error in uploading file to s3", uploadError)

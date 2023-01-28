@@ -1,0 +1,33 @@
+# Pattern for matching directories or files to exclude
+# * 	matches any sequence of non-path-separators
+# ** 	matches any sequence of characters, including path separators
+# ? 	matches any single non-path-separator character
+# [class] 	matches any single non-path-separator character against a class of characters (see below)
+# {alt1,...} 	matches a sequence of characters if one of the comma-separated alternatives matches
+aws:
+    s3BucketName: <bucket-name>
+    s3StorageClass: <stroge-class> (e.g. - GLACIER_IR)
+    profileName: <aws-cli profile name>
+backup:
+    prependHostnameToDest: true
+    folders:
+        - 
+            src: C:\Temp\Misc1
+            dest: Temp/Misc1
+        - 
+            src: C:\Temp\Misc2
+            dest: Temp/Misc2        
+    globalExcludes:
+        - '**/node_modules/**'
+        - '**/bin/**'
+        - '**/.git/**'
+        - '**/.vs/**'
+        - '**/packages/**'
+        - '**/obj/**'
+        - '**/debug/**'
+        - '**/bzr/**'
+        - '**/svn/**'
+        - '**/build/**'
+        - '**/boto/**'
+        - '**/botocore/**'
+        - '**/Sepulcher/**'

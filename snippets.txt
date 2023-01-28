@@ -1,0 +1,21 @@
+func getExcludeGlobs(excludeDirs []string) ([]glob.Glob, error) {
+	excludeGlobs := make([]glob.Glob, len(excludeDirs))
+	for i, dir := range excludeDirs {
+		g, err := glob.Compile(dir)
+		if err != nil {
+			return nil, fmt.Errorf("error compiling glob pattern %s: %v", dir, err)
+		}
+		excludeGlobs[i] = g
+	}
+	return excludeGlobs, nil
+}
+
+func isExcluded(path string, excludeGlobs []glob.Glob) bool {
+
+	for _, excludeGlob := range excludeGlobs {
+		if excludeGlob.Match(path) {
+			return true
+		}
+	}
+	return false
+}

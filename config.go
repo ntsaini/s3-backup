@@ -11,6 +11,7 @@ type Config struct {
 		S3BucketName   string `yaml:"s3BucketName"`
 		S3StorageClass string `yaml:"s3StorageClass"`
 		ProfileName    string `yaml:"profileName"`
+		Region         string `yaml:"region"`
 	}
 	Backup struct {
 		PrependHostnameToDest bool `yaml:"prependHostnameToDest"`

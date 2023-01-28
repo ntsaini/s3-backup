@@ -1,7 +1,7 @@
 ## Pseudo Code
 - get source folder and the destination folder from settings
 - recursively loop over only directories within the source folder and add them to a list
-- starting in a reverse order of subdirectories list do the following for each subdirectory
+- do the following for each subdirectory
   - create a destination folder name based on source directory
   - get all keys for files in s3 for the destination folder (this can be done in parallel to speed up the listobjects call since it limits to 1000keys)
   - if keys don't exist no comparison needed

@@ -8,6 +8,7 @@ aws:
     s3BucketName: <bucket-name>
     s3StorageClass: <stroge-class> (e.g. - GLACIER_IR)
     profileName: <aws-cli profile name>
+    region: <aws-region-name> (e.g. us-west-2)
 backup:
     prependHostnameToDest: true
     folders:

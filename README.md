@@ -13,4 +13,3 @@
     - possibly add size check as well using gzip header size
     - compress (optionally encrypt) and upload file
 
-***Make sure to add content-type to allow direct visualization from S3*

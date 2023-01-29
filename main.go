@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,12 +15,22 @@ import (
 func main() {
 
 	configFile := "config.yml"
+	logFile := "s3-backup.log"
+
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatalf("error opening log file: %v", err)
+	}
+	defer file.Close()
+
+	log.SetOutput(file)
+	log.SetFlags(log.Ldate | log.Lmicroseconds)
+
+	log.Println("Backup started")
 
 	config, err := getConfig(configFile)
 	if err != nil {
-		fmt.Println("error reading config file: ", configFile)
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatalf("error reading config file: %v. error: %v\n", configFile, err)
 	}
 
 	globalExcludes := config.Backup.GlobalExcludes
@@ -40,20 +50,17 @@ func main() {
 
 	for i, backupFolder := range backFolders {
 		if strings.TrimSpace(backupFolder.Src) == "" {
-			fmt.Printf("error in config, source for %v folder is blank", i)
-			os.Exit(1)
+			log.Fatalf("error in config, source for %v folder is blank", i)
 		}
 
 		if strings.TrimSpace(backupFolder.Dest) == "" {
-			fmt.Printf("error in config, destination for %v folder is blank", i)
-			os.Exit(1)
+			log.Fatalf("error in config, destination for %v folder is blank", i)
 		}
 
 		srcToDestMap[backupFolder.Src] = destPrefix + "/" + backupFolder.Dest
 		subDirs, subDirErr := getSubDirectories(backupFolder.Src, globalExcludes)
 		if subDirErr != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Fatalf("error in getting subdirectories for %v, error: %v", backupFolder.Src, err)
 		}
 		localDirs = append(localDirs, subDirs...)
 	}
@@ -68,10 +75,12 @@ func main() {
 		wg.Add(1)
 		go func(localDir string, srcToDestMap map[string]string, gzip bool) {
 			defer wg.Done()
-			processFilesAtRootOnly(localDir, srcToDestMap, bucketName, uploader, true)
-		}(localDir, srcToDestMap, true)
+			processFilesAtRootOnly(localDir, srcToDestMap, bucketName, uploader, gzip)
+		}(localDir, srcToDestMap, false)
 	}
 	wg.Wait()
+
+	log.Println("Backup finished")
 }
 
 func getSubDirectories(rootDir string, excludeDirs []string) ([]string, error) {
@@ -114,6 +123,12 @@ func processFilesAtRootOnly(dirPath string,
 	bucketName string,
 	uploader s3manager.Uploader,
 	gzip bool) {
+
+	destPrefix := getDestinationName(dirPath, srcToDestMap)
+	s3Svc := getS3Svc(getSession("desktop_backup_user", "us-west-2"))
+	s3ObjectMap, _ := getFilesInS3(bucketName, destPrefix, s3Svc)
+	log.Printf("Processing local directory %v to s3 destination %v\n", dirPath, destPrefix)
+
 	err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
 			//don't process the root path but don't skip iterating on files
@@ -122,17 +137,28 @@ func processFilesAtRootOnly(dirPath string,
 			}
 			return filepath.SkipDir
 		}
-		destPath := getDestinationName(path, srcToDestMap)
-		uploadError := uploadFileToS3(path, destPath, bucketName, uploader, gzip)
+		// only the key not the full s3 path
+		destKey := destPrefix + d.Name()
+		if gzip {
+			destKey = destKey + ".gz"
+		}
+
+		fileInfo, _ := d.Info()
+
+		if fileExistInS3(destKey, fileInfo, s3ObjectMap) {
+			log.Printf("File already exists in s3 src: %v, dest: %v \n", path, destKey)
+			return nil
+		}
+		s3url, uploadError := uploadFileToS3(path, destKey, bucketName, uploader, gzip)
 		if uploadError != nil {
 			return uploadError
-			// fmt.Println("error in uploading file to s3", uploadError)
+			// log.Println("error in uploading file to s3", uploadError)
 		}
-		// fmt.Printf("Processed file src: %s to dest: %s \n", dirPath+d.Name(), destPath)
+		log.Printf("Uploaded file src: %s to dest: %s \n", path, s3url)
 		return nil
 	})
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 

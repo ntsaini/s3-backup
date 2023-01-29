@@ -1,29 +1,32 @@
-# Pattern for matching directories or files to exclude
-# * 	matches any sequence of non-path-separators
-# ** 	matches any sequence of characters, including path separators
-# ? 	matches any single non-path-separator character
-# [class] 	matches any single non-path-separator character against a class of characters (see below)
-# {alt1,...} 	matches a sequence of characters if one of the comma-separated alternatives matches
 aws:
-    s3BucketName: <bucket-name>
-    # valid choices for storage class are: STANDARD | REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | GLACIER_IR
-    defaultS3StorageClass: <stroge-class>
-    profileName: <aws-cli profile name>
-    region: <aws-region-name> (e.g. us-west-2)
+    s3BucketName: <bucket-name> #(required)
+    profileName: <aws-cli profile name> #(required)
+    region: <aws-region-name> (e.g. us-west-2) #(required)
+    
 backup:
-    prependHostnameToDest: true
+    # valid choices for storage class are: STANDARD | REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | GLACIER_IR
+    defaultS3StorageClass: <stroge-class> #(required)    
+    # this prefix will be prepended to all desiniation prefixes, use your computer hostname if backing up from multiple sources
+    defaultPrefixToPrepend: <default-prefix> #(optional, leave blank if not needed)
     folders:
         - 
-            src: C:\Temp\Misc1
-            dest: Temp/Misc1
+            srcPath: C:\Temp\Misc1
+            destPrefix: Temp/Misc1
             gzip: false
             # empty means use global default
             s3StorageClass: 
         - 
-            src: C:\Temp\Misc2
-            dest: Temp/Misc2
+            srcPath: C:\Temp\Misc2
+            destPrefix: Temp/Misc2
             gzip: true
             s3StorageClass: GLACIER_IR
+    
+    # Pattern for matching directories or files to exclude
+    # * 	matches any sequence of non-path-separators
+    # ** 	matches any sequence of characters, including path separators
+    # ? 	matches any single non-path-separator character
+    # [class] 	matches any single non-path-separator character against a class of characters (see below)
+    # {alt1,...} 	matches a sequence of characters if one of the comma-separated alternatives matches
     globalExcludes:
         - '**/node_modules/**'
         - '**/bin/**'

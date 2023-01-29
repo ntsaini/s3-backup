@@ -15,20 +15,20 @@ import (
 )
 
 type BackupSubDir struct {
-	Src            string
-	Dest           string
+	SrcPath        string
+	DestPrefix     string
 	Gzip           bool
 	S3StorageClass string
 }
 
 type S3Connection struct {
-	Session             session.Session
-	Uploader            s3manager.Uploader
-	S3Svc               s3.S3
-	BucketName          string
-	DestPrefix          string
-	ProfileName         string
-	DefaultStorageClass string
+	Session                session.Session
+	Uploader               s3manager.Uploader
+	S3Svc                  s3.S3
+	BucketName             string
+	DefaultPrefixToPrepend string
+	ProfileName            string
+	DefaultStorageClass    string
 }
 
 func main() {
@@ -63,47 +63,41 @@ func main() {
 	var allBackupSubDirs []BackupSubDir
 
 	for i, backupFolder := range backFolders {
-		if strings.TrimSpace(backupFolder.Src) == "" {
+		if strings.TrimSpace(backupFolder.SrcPath) == "" {
 			log.Fatalf("error in config, source for %v folder is blank", i)
 		}
 
-		if strings.TrimSpace(backupFolder.Dest) == "" {
+		if strings.TrimSpace(backupFolder.DestPrefix) == "" {
 			log.Fatalf("error in config, destination for %v folder is blank", i)
 		}
 
 		backupDir := BackupSubDir{
-			Src:            backupFolder.Src,
-			Dest:           backupFolder.Dest,
+			SrcPath:        backupFolder.SrcPath,
+			DestPrefix:     backupFolder.DestPrefix,
 			Gzip:           backupFolder.Gzip,
 			S3StorageClass: backupFolder.S3StorageClass,
 		}
 		backupSubDirs, subDirErr := getBackupSubDirs(backupDir, globalExcludes)
 		if subDirErr != nil {
-			log.Fatalf("error in getting subdirectories for %v, error: %v", backupFolder.Src, err)
+			log.Fatalf("error in getting subdirectories for %v, error: %v", backupFolder.SrcPath, err)
 		}
 		allBackupSubDirs = append(allBackupSubDirs, backupSubDirs...)
 	}
 
 	//Get S3 Connection
-	var destPrefix string
-	if config.Backup.PrependHostnameToDest {
-		hostName, hostErr := os.Hostname()
-		if hostErr == nil {
-			destPrefix = strings.ToLower(hostName)
-		}
-	}
+
 	sess := getSession(config.AWS.ProfileName, config.AWS.Region)
 	uploader := getS3Uploader(sess)
 	s3Svc := getS3Svc(sess)
 
 	s3Connection := S3Connection{
-		Session:             sess,
-		Uploader:            uploader,
-		S3Svc:               s3Svc,
-		BucketName:          config.AWS.S3BucketName,
-		ProfileName:         config.AWS.ProfileName,
-		DestPrefix:          destPrefix,
-		DefaultStorageClass: config.AWS.DefaultS3StorageClass,
+		Session:                sess,
+		Uploader:               uploader,
+		S3Svc:                  s3Svc,
+		BucketName:             config.AWS.S3BucketName,
+		ProfileName:            config.AWS.ProfileName,
+		DefaultPrefixToPrepend: config.Backup.DefaultPrefixToPrepend,
+		DefaultStorageClass:    config.Backup.DefaultS3StorageClass,
 	}
 
 	//Process each sub directory concurrently in a go routine
@@ -125,7 +119,7 @@ func getBackupSubDirs(backupRootDir BackupSubDir, excludeDirs []string) ([]Backu
 
 	var backupSubDirs []BackupSubDir
 
-	err := filepath.WalkDir(backupRootDir.Src, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(backupRootDir.SrcPath, func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() {
 			return nil
 		}
@@ -137,11 +131,11 @@ func getBackupSubDirs(backupRootDir BackupSubDir, excludeDirs []string) ([]Backu
 			return filepath.SkipDir
 		}
 
-		destPrefix := strings.Replace(path, backupRootDir.Src, backupRootDir.Dest, 1)
+		destPrefix := strings.Replace(path, backupRootDir.SrcPath, backupRootDir.DestPrefix, 1)
 		destPrefix = strings.Replace(destPrefix, "\\", "/", -1)
 		backupSubDirs = append(backupSubDirs, BackupSubDir{
-			Src:            path,
-			Dest:           destPrefix,
+			SrcPath:        path,
+			DestPrefix:     destPrefix,
 			Gzip:           backupRootDir.Gzip,
 			S3StorageClass: backupRootDir.S3StorageClass,
 		})
@@ -165,10 +159,7 @@ func isExcluded(path string, excludeList []string) bool {
 
 func processBackupSubDir(backupDir BackupSubDir, s3Connection S3Connection) {
 
-	dirDestPrefix := backupDir.Dest
-	if strings.TrimSpace(s3Connection.DestPrefix) != "" {
-		dirDestPrefix = s3Connection.DestPrefix + "/" + dirDestPrefix
-	}
+	dirDestPrefix := getProperPrefix(s3Connection.DefaultPrefixToPrepend) + getProperPrefix(backupDir.DestPrefix)
 	storageClass := backupDir.S3StorageClass
 	if strings.TrimSpace(storageClass) == "" {
 		storageClass = s3Connection.DefaultStorageClass
@@ -177,10 +168,10 @@ func processBackupSubDir(backupDir BackupSubDir, s3Connection S3Connection) {
 
 	log.Printf("Processing backup sub directory %v\n", backupDir)
 
-	err := filepath.WalkDir(backupDir.Src, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(backupDir.SrcPath, func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
 			//don't process the root path but don't skip iterating on files
-			if path == backupDir.Src {
+			if path == backupDir.SrcPath {
 				return nil
 			}
 			return filepath.SkipDir
@@ -209,4 +200,13 @@ func processBackupSubDir(backupDir BackupSubDir, s3Connection S3Connection) {
 		log.Println(err)
 	}
 	log.Printf("Finished Processing backup sub directory %v\n", backupDir)
+}
+
+// Append "/" if it doesn't exist
+func getProperPrefix(prefix string) string {
+	properPrefix := strings.TrimSpace(prefix)
+	if !strings.HasSuffix(properPrefix, "/") && properPrefix != "" {
+		properPrefix = properPrefix + "/"
+	}
+	return properPrefix
 }

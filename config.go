@@ -8,17 +8,18 @@ import (
 
 type Config struct {
 	AWS struct {
-		S3BucketName   string `yaml:"s3BucketName"`
-		S3StorageClass string `yaml:"s3StorageClass"`
-		ProfileName    string `yaml:"profileName"`
-		Region         string `yaml:"region"`
+		S3BucketName          string `yaml:"s3BucketName"`
+		ProfileName           string `yaml:"profileName"`
+		Region                string `yaml:"region"`
+		DefaultS3StorageClass string `yaml:"defaultS3StorageClass"`
 	}
 	Backup struct {
 		PrependHostnameToDest bool `yaml:"prependHostnameToDest"`
 		Folders               []struct {
-			Src  string `yaml:"src"`
-			Dest string `yaml:"dest"`
-			Gzip bool   `yaml:"gzip"`
+			Src            string `yaml:"src"`
+			Dest           string `yaml:"dest"`
+			Gzip           bool   `yaml:"gzip"`
+			S3StorageClass string `yaml:"s3StorageClass"`
 		}
 		GlobalExcludes []string `yaml:"globalExcludes"`
 	}

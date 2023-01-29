@@ -6,7 +6,8 @@
 # {alt1,...} 	matches a sequence of characters if one of the comma-separated alternatives matches
 aws:
     s3BucketName: <bucket-name>
-    s3StorageClass: <stroge-class> (e.g. - GLACIER_IR)
+    # valid choices for storage class are: STANDARD | REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | GLACIER_IR
+    defaultS3StorageClass: <stroge-class>
     profileName: <aws-cli profile name>
     region: <aws-region-name> (e.g. us-west-2)
 backup:
@@ -16,10 +17,13 @@ backup:
             src: C:\Temp\Misc1
             dest: Temp/Misc1
             gzip: false
+            # empty means use global default
+            s3StorageClass: 
         - 
             src: C:\Temp\Misc2
             dest: Temp/Misc2
-            gzip: true     
+            gzip: true
+            s3StorageClass: GLACIER_IR
     globalExcludes:
         - '**/node_modules/**'
         - '**/bin/**'

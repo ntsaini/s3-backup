@@ -41,7 +41,8 @@ func uploadFileToS3(srcPath string,
 	destKey string,
 	bucketName string,
 	uploader s3manager.Uploader,
-	gzipFile bool) (string, error) {
+	gzipFile bool,
+	storageClass string) (string, error) {
 
 	var body io.Reader
 	var buf bytes.Buffer
@@ -83,6 +84,7 @@ func uploadFileToS3(srcPath string,
 		Body:            body,
 		ContentType:     aws.String(contentType),
 		ContentEncoding: aws.String(contentEncoding),
+		StorageClass:    aws.String(storageClass),
 	})
 	if err != nil {
 		return "", fmt.Errorf("error uploading file to S3: %v", err)

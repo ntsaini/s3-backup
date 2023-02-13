@@ -1,4 +1,4 @@
-package main
+package s3upload
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-func getSession(profileName string, awsRegion string) session.Session {
+func NewSession(profileName string, awsRegion string) session.Session {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		Profile: profileName,
 		Config: aws.Config{
@@ -28,16 +28,16 @@ func getSession(profileName string, awsRegion string) session.Session {
 	return *sess
 }
 
-func getS3Uploader(sess session.Session) s3manager.Uploader {
+func Uploader(sess session.Session) s3manager.Uploader {
 	return *s3manager.NewUploader(&sess)
 }
 
-func getS3Svc(sess session.Session) s3.S3 {
+func S3Svc(sess session.Session) s3.S3 {
 	return *s3.New(&sess)
 }
 
 // TODO: Add storage class
-func uploadFileToS3(srcPath string,
+func UploadFileToS3(srcPath string,
 	destKey string,
 	bucketName string,
 	uploader s3manager.Uploader,
@@ -97,7 +97,7 @@ func uploadFileToS3(srcPath string,
 
 // TODO: add paging for more that 1000 files
 // only returns the files in the root folder
-func getFilesInS3(bucket string, prefix string, s3Svc s3.S3) (map[string]*s3.Object, error) {
+func FilesInS3(bucket string, prefix string, s3Svc s3.S3) (map[string]*s3.Object, error) {
 	input := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(bucket),
 		Prefix:    aws.String(prefix),
@@ -115,7 +115,7 @@ func getFilesInS3(bucket string, prefix string, s3Svc s3.S3) (map[string]*s3.Obj
 	return s3ObjectMap, nil
 }
 
-func fileExistInS3(destKey string, fileInfo fs.FileInfo, s3ObjectMap map[string]*s3.Object) bool {
+func FileExistInS3(destKey string, fileInfo fs.FileInfo, s3ObjectMap map[string]*s3.Object) bool {
 	//only compare name and timestamps
 	var found bool
 	var s3FileTime time.Time

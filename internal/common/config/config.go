@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"os"
@@ -25,7 +25,7 @@ type Config struct {
 	}
 }
 
-func getConfig(configPath string) (*Config, error) {
+func Read(configPath string) (*Config, error) {
 	// Create config structure
 	config := &Config{}
 

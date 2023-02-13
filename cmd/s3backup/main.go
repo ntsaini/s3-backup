@@ -8,6 +8,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ntsaini/s3-backup/internal/common/config"
+	"github.com/ntsaini/s3-backup/internal/service/s3upload"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -47,13 +50,13 @@ func main() {
 
 	log.Println("Backup started")
 
-	config, err := getConfig(configFile)
+	cfg, err := config.Read(configFile)
 	if err != nil {
 		log.Fatalf("error reading config file: %v. error: %v\n", configFile, err)
 	}
 
-	globalExcludes := config.Backup.GlobalExcludes
-	backFolders := config.Backup.Folders
+	globalExcludes := cfg.Backup.GlobalExcludes
+	backFolders := cfg.Backup.Folders
 
 	if len(backFolders) == 0 {
 		log.Fatalf("error in config, no backup folders provided")
@@ -86,18 +89,18 @@ func main() {
 
 	//Get S3 Connection
 
-	sess := getSession(config.AWS.ProfileName, config.AWS.Region)
-	uploader := getS3Uploader(sess)
-	s3Svc := getS3Svc(sess)
+	sess := s3upload.NewSession(cfg.AWS.ProfileName, cfg.AWS.Region)
+	uploader := s3upload.Uploader(sess)
+	s3Svc := s3upload.S3Svc(sess)
 
 	s3Connection := S3Connection{
 		Session:                sess,
 		Uploader:               uploader,
 		S3Svc:                  s3Svc,
-		BucketName:             config.AWS.S3BucketName,
-		ProfileName:            config.AWS.ProfileName,
-		DefaultPrefixToPrepend: config.Backup.DefaultPrefixToPrepend,
-		DefaultStorageClass:    config.Backup.DefaultS3StorageClass,
+		BucketName:             cfg.AWS.S3BucketName,
+		ProfileName:            cfg.AWS.ProfileName,
+		DefaultPrefixToPrepend: cfg.Backup.DefaultPrefixToPrepend,
+		DefaultStorageClass:    cfg.Backup.DefaultS3StorageClass,
 	}
 
 	//Process each sub directory concurrently in a go routine
@@ -164,7 +167,7 @@ func processBackupSubDir(backupDir BackupSubDir, s3Connection S3Connection) {
 	if strings.TrimSpace(storageClass) == "" {
 		storageClass = s3Connection.DefaultStorageClass
 	}
-	s3ObjectMap, _ := getFilesInS3(s3Connection.BucketName, dirDestPrefix, s3Connection.S3Svc)
+	s3ObjectMap, _ := s3upload.FilesInS3(s3Connection.BucketName, dirDestPrefix, s3Connection.S3Svc)
 
 	log.Printf("Processing backup sub directory %v\n", backupDir)
 
@@ -184,11 +187,11 @@ func processBackupSubDir(backupDir BackupSubDir, s3Connection S3Connection) {
 
 		fileInfo, _ := d.Info()
 
-		if fileExistInS3(destKey, fileInfo, s3ObjectMap) {
+		if s3upload.FileExistInS3(destKey, fileInfo, s3ObjectMap) {
 			log.Printf("File already exists in s3 src: %v, dest: %v \n", path, destKey)
 			return nil
 		}
-		s3url, uploadError := uploadFileToS3(path, destKey, s3Connection.BucketName, s3Connection.Uploader, backupDir.Gzip, storageClass)
+		s3url, uploadError := s3upload.UploadFileToS3(path, destKey, s3Connection.BucketName, s3Connection.Uploader, backupDir.Gzip, storageClass)
 		if uploadError != nil {
 			log.Printf("error in uploading file to s3, file: %v, error: %v \n", path, uploadError)
 			return uploadError

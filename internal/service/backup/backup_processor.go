@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ntsaini/s3-backup/internal/common"
 	"github.com/ntsaini/s3-backup/internal/common/config"
 	"github.com/ntsaini/s3-backup/internal/service/s3upload"
@@ -36,11 +37,23 @@ func (b *BackupProcessor) processBackupSubDir(backupDir config.BackupFolderConfi
 
 	storageClass := b.storageClass(backupDir)
 
-	s3ObjectMap, _ := b.Uploader.FilesInS3(b.S3Connection.BucketName, dirDestPrefix)
+	s3ObjectMap, _ := b.Uploader.ListFiles(b.S3Connection.BucketName, dirDestPrefix)
 
 	log.Printf("Processing backup sub directory %v\n", backupDir)
 
-	err := filepath.WalkDir(backupDir.SrcPath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(backupDir.SrcPath,
+		b.filepathProcessor(s3ObjectMap, dirDestPrefix, storageClass, backupDir))
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	log.Printf("Finished Processing backup sub directory %v\n", backupDir)
+}
+
+func (b *BackupProcessor) filepathProcessor(s3ObjectMap map[string]*s3.Object,
+	dirDestPrefix string, storageClass string, backupDir config.BackupFolderConfig) fs.WalkDirFunc {
+	return func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
 			//don't process the root path but don't skip iterating on files
 			if path == backupDir.SrcPath {
@@ -56,11 +69,11 @@ func (b *BackupProcessor) processBackupSubDir(backupDir config.BackupFolderConfi
 
 		fileInfo, _ := d.Info()
 
-		if b.Uploader.FileExistInS3(destKey, fileInfo, s3ObjectMap) {
+		if b.Uploader.FileExists(destKey, fileInfo, s3ObjectMap) {
 			log.Printf("File already exists in s3 src: %v, dest: %v \n", path, destKey)
 			return nil
 		}
-		s3url, uploadError := b.Uploader.UploadFileToS3(path, destKey,
+		s3url, uploadError := b.Uploader.UploadFile(path, destKey,
 			b.S3Connection.BucketName,
 			backupDir.Gzip,
 			storageClass)
@@ -71,11 +84,7 @@ func (b *BackupProcessor) processBackupSubDir(backupDir config.BackupFolderConfi
 		}
 		log.Printf("Uploaded file src: %s to dest: %s \n", path, s3url)
 		return nil
-	})
-	if err != nil {
-		log.Println(err)
 	}
-	log.Printf("Finished Processing backup sub directory %v\n", backupDir)
 }
 
 func (b *BackupProcessor) storageClass(backupDir config.BackupFolderConfig) string {

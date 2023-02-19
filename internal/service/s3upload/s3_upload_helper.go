@@ -31,7 +31,7 @@ func NewUploader(profileName, AWSRegion string) *S3UploadHelper {
 }
 
 // TODO: Add storage class
-func (u *S3UploadHelper) UploadFileToS3(srcPath string,
+func (u *S3UploadHelper) UploadFile(srcPath string,
 	destKey string,
 	bucketName string,
 	gzipFile bool,
@@ -87,7 +87,7 @@ func (u *S3UploadHelper) UploadFileToS3(srcPath string,
 
 	return s3Url, nil
 }
-func (u *S3UploadHelper) FileExistInS3(destKey string, fileInfo fs.FileInfo, s3ObjectMap map[string]*s3.Object) bool {
+func (u *S3UploadHelper) FileExists(destKey string, fileInfo fs.FileInfo, s3ObjectMap map[string]*s3.Object) bool {
 	//only compare name and timestamps
 	var found bool
 	var s3FileTime time.Time
@@ -106,7 +106,7 @@ func (u *S3UploadHelper) FileExistInS3(destKey string, fileInfo fs.FileInfo, s3O
 
 // TODO: add paging for more that 1000 files
 // only returns the files in the root folder
-func (u *S3UploadHelper) FilesInS3(bucket, prefix string) (map[string]*s3.Object, error) {
+func (u *S3UploadHelper) ListFiles(bucket, prefix string) (map[string]*s3.Object, error) {
 	input := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(bucket),
 		Prefix:    aws.String(prefix),
